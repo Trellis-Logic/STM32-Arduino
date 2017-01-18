@@ -1,3 +1,5 @@
+#include <dfu_hw_redbear_bluetooth.h>
+
 /*
  * Copyright (c) 2016 RedBear
  * 
@@ -124,10 +126,18 @@ static uint8_t adv_data[] = {
   0x02,
   BLE_GAP_AD_TYPE_FLAGS,
   BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE,   
+
+  0x03,
+  BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_MORE_AVAILABLE,
+  BLE_DFU_SERVICE_UUID & 0xFF,
+  (BLE_DFU_SERVICE_UUID >> 8) & 0xFF,
   
   0x11,
   BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
-  0x1e, 0x94, 0x8d, 0xf1, 0x48, 0x31, 0x94, 0xba, 0x75, 0x4c, 0x3e, 0x50, 0x00, 0x00, 0x3d, 0x71 
+  0x1e, 0x94, 0x8d, 0xf1, 0x48, 0x31, 0x94, 0xba, 0x75, 0x4c, 0x3e, 0x50, 0x00, 0x00, 0x3d, 0x71,
+  
+
+  
 };
 
 // BLE peripheral scan respond data
@@ -148,6 +158,10 @@ static uint8_t characteristic3_data[CHARACTERISTIC2_MAX_LEN] = { 0x03 };
 
 // Timer task.
 static btstack_timer_source_t characteristic2;
+
+// Device firmware update related data
+struct dfu_context dfu_context;
+
 
 /******************************************************
  *               Function Definitions
@@ -256,6 +270,10 @@ int gattWriteCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size) {
     }
     Serial.println(" ");
   }
+  else
+  {
+    dfu_gatt_write_callback(&dfu_context,value_handle,buffer,size);
+  }
   return 0;
 }
 
@@ -270,11 +288,15 @@ static void characteristic2_notify(btstack_timer_source_t *ts) {
   Serial.println("characteristic2_notify");
 
   characteristic2_data[CHARACTERISTIC2_MAX_LEN-1]++;
-  ble.sendNotify(character2_handle, characteristic2_data, CHARACTERISTIC2_MAX_LEN);
+  int rc=ble.sendNotify(character2_handle, characteristic2_data, CHARACTERISTIC2_MAX_LEN);
+  Serial.print("sendNotify returned ");
+  Serial.print(rc);
+  Serial.print(" \n");
   // Restart timer.
   ble.setTimer(ts, 10000);
   ble.addTimer(ts);
 }
+
 
 /**
  * @brief Setup.
@@ -318,6 +340,9 @@ void setup() {
   ble.addService(service2_uuid);
   character3_handle = ble.addCharacteristic(char3_uuid, ATT_PROPERTY_READ, characteristic3_data, CHARACTERISTIC3_MAX_LEN);
 
+  // Initialize device firmware udpate over BLE
+  dfu_ble_redbear_transport_init(&dfu_context,ble);
+
   // Set BLE advertising parameters
   ble.setAdvertisementParams(&adv_params);
 
@@ -339,6 +364,6 @@ void setup() {
  * @brief Loop.
  */
 void loop() {
-    
+    dfu_update(&dfu_context);
 }
 
