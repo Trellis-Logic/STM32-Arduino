@@ -297,7 +297,8 @@ static void characteristic2_notify(btstack_timer_source_t *ts) {
   ble.addTimer(ts);
 }
 
-
+int led1 = D0;
+int led2 = D7;
 /**
  * @brief Setup.
  */
@@ -358,12 +359,32 @@ void setup() {
   characteristic2.process = &characteristic2_notify;
   ble.setTimer(&characteristic2, 10000);
   ble.addTimer(&characteristic2);
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
 }
 
+#define INCLUDE_BLINK 1
+#define FAST_BLINK    0
+
+#if FAST_BLINK
+#define DELAY_TIME 100
+#else
+#define DELAY_TIME 1000
+#endif
 /**
  * @brief Loop.
  */
 void loop() {
-    dfu_update(&dfu_context);
+  dfu_update(&dfu_context);
+#if INCLUDE_BLINK
+  digitalWrite(led1, HIGH);
+  digitalWrite(led2, HIGH);
+  delay(DELAY_TIME);
+
+  
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, LOW);
+  delay(DELAY_TIME);
+#endif
 }
 
