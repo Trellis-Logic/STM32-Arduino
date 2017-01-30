@@ -1,4 +1,5 @@
-#include <dfu_hw_redbear_bluetooth.h>
+#include <sdu_hw_redbear_bluetooth.h>
+
 
 /*
  * Copyright (c) 2016 RedBear
@@ -129,8 +130,8 @@ static uint8_t adv_data[] = {
 
   0x03,
   BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_MORE_AVAILABLE,
-  BLE_DFU_SERVICE_UUID & 0xFF,
-  (BLE_DFU_SERVICE_UUID >> 8) & 0xFF,
+  BLE_SDU_SERVICE_UUID & 0xFF,
+  (BLE_SDU_SERVICE_UUID >> 8) & 0xFF,
   
   0x11,
   BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
@@ -159,8 +160,8 @@ static uint8_t characteristic3_data[CHARACTERISTIC2_MAX_LEN] = { 0x03 };
 // Timer task.
 static btstack_timer_source_t characteristic2;
 
-// Device firmware update related data
-struct dfu_context dfu_context;
+// Secure Device Update context related data
+struct sdu_context sdu_context;
 
 
 /******************************************************
@@ -272,7 +273,7 @@ int gattWriteCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size) {
   }
   else
   {
-    dfu_gatt_write_callback(&dfu_context,value_handle,buffer,size);
+    sdu_gatt_write_callback(&sdu_context,value_handle,buffer,size);
   }
   return 0;
 }
@@ -342,7 +343,7 @@ void setup() {
   character3_handle = ble.addCharacteristic(char3_uuid, ATT_PROPERTY_READ, characteristic3_data, CHARACTERISTIC3_MAX_LEN);
 
   // Initialize device firmware udpate over BLE
-  dfu_ble_redbear_transport_init(&dfu_context,ble);
+  sdu_ble_redbear_transport_init(&sdu_context,ble);
 
   // Set BLE advertising parameters
   ble.setAdvertisementParams(&adv_params);
@@ -375,7 +376,7 @@ void setup() {
  * @brief Loop.
  */
 void loop() {
-  dfu_update(&dfu_context);
+  sdu_update(&sdu_context);
 #if INCLUDE_BLINK
   digitalWrite(led1, HIGH);
   digitalWrite(led2, HIGH);
