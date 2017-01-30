@@ -1,3 +1,6 @@
+#include <sdu_hw_redbear_bluetooth.h>
+
+
 /*
  * Copyright (c) 2016 RedBear
  * 
@@ -124,6 +127,11 @@ static uint8_t adv_data[] = {
   0x02,
   BLE_GAP_AD_TYPE_FLAGS,
   BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE,   
+
+  0x03,
+  BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_MORE_AVAILABLE,
+  BLE_SDU_SERVICE_UUID & 0xFF,
+  (BLE_SDU_SERVICE_UUID >> 8) & 0xFF,
   
   0x11,
   BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
@@ -148,6 +156,10 @@ static uint8_t characteristic3_data[CHARACTERISTIC2_MAX_LEN] = { 0x03 };
 
 // Timer task.
 static btstack_timer_source_t characteristic2;
+
+// Secure Device Update context related data
+struct sdu_context sdu_context;
+
 
 /******************************************************
  *               Function Definitions
@@ -256,6 +268,10 @@ int gattWriteCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size) {
     }
     Serial.println(" ");
   }
+  else
+  {
+    sdu_gatt_write_callback(&sdu_context,value_handle,buffer,size);
+  }
   return 0;
 }
 
@@ -275,6 +291,7 @@ static void characteristic2_notify(btstack_timer_source_t *ts) {
   ble.setTimer(ts, 10000);
   ble.addTimer(ts);
 }
+
 
 /**
  * @brief Setup.
@@ -318,6 +335,9 @@ void setup() {
   ble.addService(service2_uuid);
   character3_handle = ble.addCharacteristic(char3_uuid, ATT_PROPERTY_READ, characteristic3_data, CHARACTERISTIC3_MAX_LEN);
 
+  // Initialize device firmware udpate over BLE
+  sdu_ble_redbear_transport_init(&sdu_context,ble);
+
   // Set BLE advertising parameters
   ble.setAdvertisementParams(&adv_params);
 
@@ -339,6 +359,6 @@ void setup() {
  * @brief Loop.
  */
 void loop() {
-    
+  sdu_update(&sdu_context);
 }
 
