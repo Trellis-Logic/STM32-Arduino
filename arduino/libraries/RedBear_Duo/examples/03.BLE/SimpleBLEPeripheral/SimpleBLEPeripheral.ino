@@ -1,3 +1,6 @@
+#include <sdu_hw_redbear_bluetooth.h>
+
+
 /*
  * Copyright (c) 2016 RedBear
  * 
@@ -124,6 +127,11 @@ static uint8_t adv_data[] = {
   0x02,
   BLE_GAP_AD_TYPE_FLAGS,
   BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE,   
+
+  0x03,
+  BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_MORE_AVAILABLE,
+  BLE_SDU_SERVICE_UUID & 0xFF,
+  (BLE_SDU_SERVICE_UUID >> 8) & 0xFF,
   
   0x11,
   BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE,
@@ -148,6 +156,20 @@ static uint8_t characteristic3_data[CHARACTERISTIC2_MAX_LEN] = { 0x03 };
 
 // Timer task.
 static btstack_timer_source_t characteristic2;
+
+// Secure Device Update context related data
+struct sdu_context sdu_context;
+
+#if uECC_VLI_NATIVE_LITTLE_ENDIAN
+//Key in little endian format:
+static const uint8_t pk[] = { 0x97, 0x27, 0x82, 0x4b, 0x75, 0x97, 0x81, 0x99, 0xe5, 0x16, 0x93, 0x83, 0x59, 0x7c, 0x53, 0xcb, 0x2a, 0xa5, 0xa7, 0xdf, 0xb6, 0x6e, 0xaf, 0x8b, 0xa6, 0x45, 0x00, 0x56, 0xa1, 0xbf, 0x23, 0x0f, 0x8d, 0x5a, 0xf4, 0xe5, 0x54, 0x23, 0x0b, 0x5b, 0x03, 0x2d, 0xeb, 0x59, 0x51, 0x20, 0xd8, 0xf5, 0x28, 0x61, 0x83, 0xd7, 0xdb, 0x02, 0xec, 0xa6, 0x44, 0x8a, 0xb1, 0x0d, 0x4f, 0x9c, 0x8d, 0xdf };
+#else
+//Key in big endian format:
+static const uint8_t pk[] = { 0x0f, 0x23, 0xbf, 0xa1, 0x56, 0x00, 0x45, 0xa6, 0x8b, 0xaf, 0x6e, 0xb6, 0xdf, 0xa7, 0xa5, 0x2a, 0xcb, 0x53, 0x7c, 0x59, 0x83, 0x93, 0x16, 0xe5, 0x99, 0x81, 0x97, 0x75, 0x4b, 0x82, 0x27, 0x97, 0xdf, 0x8d, 0x9c, 0x4f, 0x0d, 0xb1, 0x8a, 0x44, 0xa6, 0xec, 0x02, 0xdb, 0xd7, 0x83, 0x61, 0x28, 0xf5, 0xd8, 0x20, 0x51, 0x59, 0xeb, 0x2d, 0x03, 0x5b, 0x0b, 0x23, 0x54, 0xe5, 0xf4, 0x5a, 0x8d };
+#endif //uECC_VLI_NATIVE_LITTLE_ENDIAN
+const struct crypto_key crypto_key_pk = { (uint8_t *)pk, sizeof(pk) };
+
+
 
 /******************************************************
  *               Function Definitions
@@ -256,6 +278,10 @@ int gattWriteCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size) {
     }
     Serial.println(" ");
   }
+  else
+  {
+    sdu_gatt_write_callback(&sdu_context,value_handle,buffer,size);
+  }
   return 0;
 }
 
@@ -275,6 +301,7 @@ static void characteristic2_notify(btstack_timer_source_t *ts) {
   ble.setTimer(ts, 10000);
   ble.addTimer(ts);
 }
+
 
 /**
  * @brief Setup.
@@ -318,6 +345,9 @@ void setup() {
   ble.addService(service2_uuid);
   character3_handle = ble.addCharacteristic(char3_uuid, ATT_PROPERTY_READ, characteristic3_data, CHARACTERISTIC3_MAX_LEN);
 
+  // Initialize device firmware udpate over BLE
+  sdu_ble_redbear_transport_init(&sdu_context,ble,&crypto_key_pk);
+
   // Set BLE advertising parameters
   ble.setAdvertisementParams(&adv_params);
 
@@ -339,6 +369,6 @@ void setup() {
  * @brief Loop.
  */
 void loop() {
-    
+  sdu_update(&sdu_context);
 }
 
