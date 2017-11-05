@@ -41,12 +41,15 @@
 SYSTEM_MODE(SEMI_AUTOMATIC); 
 #endif
 
+extern "C" void c_function(void);
+
 int led1 = D0;
 int led2 = D7;
 
 void setup() {
   pinMode(led1, OUTPUT);
   pinMode(led2, OUTPUT);
+  c_function();
 }
 
 void loop() {
